@@ -458,7 +458,10 @@ by Xiaomi AI Lab Next-gen Kaldi team.
                             parts.append(v)
                     return ", ".join(parts)
 
-                def _design_fn(text, lang, ns, gs, dn, sp, du, pp, po, *groups):
+                def _design_fn(text, lang, *args):
+                    num_groups = len(vd_groups)
+                    groups = args[:num_groups]
+                    ns, gs, dn, sp, du, pp, po = args[num_groups:]
                     return _gen(
                         text,
                         lang,
@@ -479,6 +482,9 @@ by Xiaomi AI Lab Next-gen Kaldi team.
                     inputs=[
                         vd_text,
                         vd_lang,
+                    ]
+                    + vd_groups
+                    + [
                         vd_ns,
                         vd_gs,
                         vd_dn,
@@ -486,8 +492,7 @@ by Xiaomi AI Lab Next-gen Kaldi team.
                         vd_du,
                         vd_pp,
                         vd_po,
-                    ]
-                    + vd_groups,
+                    ],
                     outputs=[vd_audio, vd_status],
                 )
 

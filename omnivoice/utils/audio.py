@@ -45,9 +45,10 @@ logger = logging.getLogger(__name__)
 def load_waveform(audio_path: str):
     """Load audio from a file path, returning (data, sample_rate).
 
-    Tries two backends in order:
+    Tries backends in order:
     1. soundfile — covers WAV/FLAC/OGG etc., no ffmpeg needed.
-    2. librosa — covers MP3/M4A etc. via audioread + ffmpeg.
+    2. librosa — covers MP3 etc.
+    3. pydub — covers M4A/AAC/WMA etc. via ffmpeg fallback.
 
     Returns:
         (data, sample_rate) where data is a numpy float32 array of
@@ -57,13 +58,26 @@ def load_waveform(audio_path: str):
         data, sr = sf.read(audio_path, dtype="float32", always_2d=True)
         return data.T, sr  # (T, C) → (C, T)
     except Exception:
-        # soundfile cannot handle MP3/M4A etc., fall back to librosa.
+        pass
+
+    try:
         import librosa
 
         data, sr = librosa.load(audio_path, sr=None, mono=False)
         if data.ndim == 1:
             data = data[np.newaxis, :]
         return data, sr
+    except Exception:
+        pass
+
+    # Fallback via pydub+ffmpeg for formats soundfile/librosa can't handle (e.g. M4A)
+    aseg = AudioSegment.from_file(audio_path)
+    audio_data = np.array(aseg.get_array_of_samples()).astype(np.float32) / 32768.0
+    if aseg.channels == 1:
+        data = audio_data[np.newaxis, :]
+    else:
+        data = audio_data.reshape(-1, aseg.channels).T
+    return data, aseg.frame_rate
 
 
 def load_audio(audio_path: str, sampling_rate: int) -> np.ndarray:
